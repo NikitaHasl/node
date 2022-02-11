@@ -1,3 +1,3 @@
 .idea
-project/node_modules
-project/package-lock.json
+socket/node_modules
+socket/package-lock.json
