@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Socket</title>
+    <script src="https://cdn.socket.io/4.4.1/socket.io.min.js"
+            integrity="sha384-fKnu0iswBIqkjxrhQCTZ7qlLHOFEgNkRmK2vaO/LbTZSXdJfAu6ewRBdwHPhBo/H"
+            crossorigin="anonymous"></script>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+        }
+
+        .auth {
+            margin: 200px;
+        }
+
+        .main {
+            display: flex;
+        }
+
+        .chat {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-width: 350px;
+        }
+
+        .messages {
+            min-height: 400px;
+            border: solid gray 1px;
+            border-radius: 5px;
+            box-shadow: 0 0 2px 2px antiquewhite;
+        }
+
+        .user-message {
+            border: 2px solid #dedede;
+            background-color: rgba(250, 175, 175, 0.99);
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px 3px;
+        }
+
+        .user-message p {
+            margin: 5px;
+        }
+
+        .information-message {
+            border: 2px solid #dedede;
+            background-color: #f1f1f1;
+            border-radius: 5px;
+            margin: 5px 0;
+        }
+
+        .input-message {
+            border-radius: 5px;
+            border: 1px solid;
+            padding: 5px;
+            margin: 5px 0;
+        }
+
+        .send-button:hover {
+            cursor: pointer;
+            color: gray;
+        }
+
+        .information {
+            border-radius: 5px;
+            border: 1px solid;
+            padding: 5px;
+            margin-left: 5px;
+            max-width: 150px;
+            max-height: 250px;
+            overflow-y: scroll;
+        }
+
+        .information-item {
+            margin: 5px;
+        }
+
+        .hide {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+<div class="main hide">
+    <div class="chat">
+        <div class="messages">
+        </div>
+        <input class="input-message" type="text" autofocus>
+        <button class="send-button">Send</button>
+    </div>
+
+    <div class="information">
+        <p class="information-item">A list of users:</p>
+        <div class="users"></div>
+    </div>
+</div>
+
+
+<div class="auth">
+    <label for="user-name">Enter your name</label>
+    <input type="text" id="user-name" placeholder="name">
+    <button class="login">Login</button>
+</div>
+
+<script>
+    const main = document.querySelector('.main');
+
+    const inputName = document.querySelector('#user-name');
+    const loginButton = document.querySelector('.login');
+    const authForm = document.querySelector('.auth');
+
+    const messageBlock = document.querySelector('.messages');
+    const inputMessage = document.querySelector('.input-message');
+    const sendButton = document.querySelector('.send-button');
+
+    const information = document.querySelector('.information');
+    const userList = document.querySelector('.users');
+
+
+    function isUserLogged(name) {
+        if (name) {
+            loggedUser(name);
+        } else {
+            authorisation();
+        }
+    }
+
+    function loggedUser(name) {
+        const socket = io('localhost', {
+            extraHeaders: {
+                'userName': name,
+            }
+        });
+
+        authForm.classList.add('hide');
+        main.classList.remove('hide');
+
+        information.insertAdjacentHTML('afterbegin', `<p class="information-item">Your name: ${name}</p>`);
+
+        sendButton.addEventListener('click', () => {
+            const data = {
+                message: inputMessage.value,
+                name: name,
+            };
+
+            socket.emit('clientMessage', data);
+            inputMessage.value = '';
+        });
+
+        socket.on('newConnection', (data) => {
+            let {newUser, users} = data;
+            messageBlock.insertAdjacentHTML('beforeend', `<div class="information-message">User ${newUser} has connected</div>`);
+            renderUserList(users);
+        })
+
+        socket.on('userDisconnect', (data) => {
+            let {user, users} = data;
+            messageBlock.insertAdjacentHTML('beforeend', `<div class="information-message">User ${user} has disconnected</div>`);
+            renderUserList(users);
+        })
+
+        socket.on('serverMsg', (data) => {
+            let { name, message } = data;
+            messageBlock.insertAdjacentHTML('beforeend', `
+            <div class="user-message">
+                <span>${name}</span>
+                <p>${message}</p>
+            </div>
+        `)
+        })
+    }
+
+    function authorisation() {
+        loginButton.addEventListener('click', () => {
+            let name = inputName.value.trim();
+            if (name !== '' || name.length > 15) {
+                sessionStorage.setItem('name', name);
+                loggedUser(name);
+            } else {
+                alert('Name cannot be empty and length cannot exceed 15 symbols!');
+            }
+        })
+    }
+
+    function renderUserList(users) {
+        userList.innerHTML = '';
+        let list = '';
+        users.forEach((user) => {
+            list += `<p class="information-item">${user}</p>`;
+        })
+        userList.insertAdjacentHTML('afterbegin', list);
+    }
+
+    isUserLogged(sessionStorage.getItem('name'));
+
+
+</script>
+</body>
+</html>
